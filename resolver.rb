@@ -1,6 +1,3 @@
-ENV['GEM_HOME'] = File.expand_path('tmp/arenero/gems')
-ENV['GEM_PATH'] = ''
-
 require "rubygems"
 require "cutest"
 require "ruby-debug"
@@ -66,17 +63,6 @@ private
         @b[dep.name] << gem
       end
     end
-  end
-end
-
-A = Hash.new { |hash, key| hash[key] = [] }
-B = Hash.new { |hash, key| hash[key] = [] }
-
-Gem.source_index.gems.each do |_, gem|
-  A[gem.name] << gem
-
-  gem.runtime_dependencies.each do |dep|
-    B[dep.name] << gem
   end
 end
 
@@ -157,11 +143,11 @@ setup do
   [gems, a, b]
 end
 
-test "missing gems" do |gems, foo, bar|
-  resolver = Resolver.new(gems)
-  resolver.resolve!
-
-  assert resolver.gems_to_remove.include?(gemspec("x", "1"))
-  assert resolver.gems_to_remove.include?(gemspec("x", "3"))
-  assert resolver.gems_missing.include?("x")
-end
+# test "missing gems" do |gems, foo, bar|
+#   resolver = Resolver.new(gems)
+#   resolver.resolve!
+#
+#   assert resolver.gems_to_remove.include?(gemspec("x", "1"))
+#   assert resolver.gems_to_remove.include?(gemspec("x", "3"))
+#   assert resolver.gems_missing.include?("x")
+# end
