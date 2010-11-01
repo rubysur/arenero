@@ -5,6 +5,30 @@ require "rubygems"
 require "cutest"
 require "ruby-debug"
 
+def gemspec(name, version, dependencies = {})
+  Gem::Specification.new do |spec|
+    spec.name = name
+    spec.version = version
+    spec.summary = name
+    dependencies.each do |dep|
+      spec.add_dependency(*dep)
+    end
+  end
+end
+
+gemspec("a", 1, "x" => ">= 1")
+gemspec("b", 1, "x" => "1")
+gemspec("x", 1)
+gemspec("x", 2)
+
+test do
+  assert_equal "1", gemspec("x", 1).version.to_s
+  assert_equal ">= 1", gemspec("a", 1, "x" => ">= 1").runtime_dependencies.first.requirement.to_s
+  assert_equal "= 1", gemspec("a", 1, "x" => "1").runtime_dependencies.first.requirement.to_s
+end
+
+__END__
+
 A = Hash.new { |hash, key| hash[key] = [] }
 B = Hash.new { |hash, key| hash[key] = [] }
 
