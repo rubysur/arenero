@@ -25,13 +25,35 @@ end
 class Resolver
   attr :a
   attr :b
+  attr :gems_to_remove
 
   def initialize(gems)
     @gems = gems
     @a = Hash.new { |hash, key| hash[key] = [] }
     @b = Hash.new { |hash, key| hash[key] = [] }
 
+    @gems_to_remove = []
+
     populate_lists
+  end
+
+  def resolve!
+    remove = []
+
+    b.each do |name, dependees|
+      a[name].sort!
+      keep, _remove = a[name].partition do |gem|
+        dependees.all? do |dependee|
+          dep = dependee.runtime_dependencies.detect {|dep| dep.name == name }
+          dep && dep.match?(gem.name, gem.version)
+        end
+      end
+
+      remove.concat(_remove) unless _remove.empty?
+      remove.concat(keep[1..-1]) if keep[1..-1]
+    end
+
+    @gems_to_remove = remove
   end
 
 private
@@ -56,20 +78,6 @@ Gem.source_index.gems.each do |_, gem|
   gem.runtime_dependencies.each do |dep|
     B[dep.name] << gem
   end
-end
-
-remove = []
-
-B.each do |name, dependees|
-  A[name].sort!
-  keep, _remove = A[name].partition do |gem|
-    dependees.all? do |dependee|
-      dep = dependee.runtime_dependencies.detect {|dep| dep.name == name }
-      dep && dep.match?(gem.name, gem.version)
-    end
-  end
-
-  remove.concat(_remove).concat(keep[1..-1])
 end
 
 setup do
@@ -97,4 +105,63 @@ test do |gems|
   assert_equal "1", resolver.b["x"].first.version.to_s
   assert_equal "b", resolver.b["x"].last.name
   assert_equal "1", resolver.b["x"].last.version.to_s
+end
+
+test do |gems|
+  resolver = Resolver.new(gems)
+
+  resolver.resolve!
+
+  assert_equal [gemspec("x", "2")], resolver.gems_to_remove
+end
+
+setup do
+  gems = []
+
+  foo = gemspec("foo", "1.0.0", "bar" => ">= 0")
+  bar = gemspec("bar", "1.0.0", "baz" => "~> 1.0.0")
+
+  gems << foo
+  gems << bar
+
+  gems << gemspec("baz", "1.0.0")
+  gems << gemspec("baz", "1.1.0")
+  gems << gemspec("baz", "1.2.0")
+
+  [gems, foo, bar]
+end
+
+test do |gems, foo, bar|
+  resolver = Resolver.new(gems)
+  resolver.resolve!
+
+  assert resolver.gems_to_remove.include?(gemspec("baz", "1.1.0"))
+  assert resolver.gems_to_remove.include?(gemspec("baz", "1.2.0"))
+  assert !resolver.gems_to_remove.include?(gemspec("baz", "1.0.0"))
+  assert !resolver.gems_to_remove.include?(foo)
+  assert !resolver.gems_to_remove.include?(bar)
+end
+
+setup do
+  gems = []
+
+  a = gemspec("a", "1", "x" => "< 3")   # 02/02/2010
+  b = gemspec("b", "1", "x" => ">= 2")  # 04/04/2010
+
+  gems << a
+  gems << b
+
+  gems << gemspec("x", "1") # 01/01/2010
+  gems << gemspec("x", "3") # 03/03/2010
+
+  [gems, a, b]
+end
+
+test "missing gems" do |gems, foo, bar|
+  resolver = Resolver.new(gems)
+  resolver.resolve!
+
+  assert resolver.gems_to_remove.include?(gemspec("x", "1"))
+  assert resolver.gems_to_remove.include?(gemspec("x", "3"))
+  assert resolver.gems_missing.include?("x")
 end
