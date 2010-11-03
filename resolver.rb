@@ -23,6 +23,7 @@ class Resolver
   attr :a
   attr :b
   attr :gems_to_remove
+  attr :gems_missing
 
   def initialize(gems)
     @gems = gems
@@ -30,6 +31,7 @@ class Resolver
     @b = Hash.new { |hash, key| hash[key] = [] }
 
     @gems_to_remove = []
+    @gems_missing = []
 
     populate_lists
   end
@@ -38,8 +40,7 @@ class Resolver
     remove = []
 
     b.each do |name, dependees|
-      a[name].sort!
-      keep, _remove = a[name].partition do |gem|
+      keep, _remove = a[name].sort.partition do |gem|
         dependees.all? do |dependee|
           dep = dependee.runtime_dependencies.detect {|dep| dep.name == name }
           dep && dep.match?(gem.name, gem.version)
@@ -48,7 +49,15 @@ class Resolver
 
       remove.concat(_remove) unless _remove.empty?
       remove.concat(keep[1..-1]) if keep[1..-1]
+
+
+      if keep.empty?
+        deps = dependees.map { |dependee| dependee.runtime_dependencies.detect {|dep| dep.name == name } }
+        deps = deps.map { |dep| dep.requirement.to_s }
+        @gems_missing << [name, deps]
+      end
     end
+
 
     @gems_to_remove = remove
   end
@@ -143,11 +152,11 @@ setup do
   [gems, a, b]
 end
 
-# test "missing gems" do |gems, foo, bar|
-#   resolver = Resolver.new(gems)
-#   resolver.resolve!
-#
-#   assert resolver.gems_to_remove.include?(gemspec("x", "1"))
-#   assert resolver.gems_to_remove.include?(gemspec("x", "3"))
-#   assert resolver.gems_missing.include?("x")
-# end
+test "missing gems" do |gems, foo, bar|
+  resolver = Resolver.new(gems)
+  resolver.resolve!
+
+  assert resolver.gems_to_remove.include?(gemspec("x", "1"))
+  assert resolver.gems_to_remove.include?(gemspec("x", "3"))
+  assert resolver.gems_missing.include?(["x", ["< 3", ">= 2"]])
+end
