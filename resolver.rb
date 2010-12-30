@@ -19,27 +19,26 @@ test do
 end
 
 class Resolver
-  attr :a
-  attr :b
+  attr :versions
+  attr :runtime_dependees
   attr :gems_to_remove
   attr :gems_missing
 
-  def initialize(gems)
-    @gems = gems
-    @a = Hash.new { |hash, key| hash[key] = [] }
-    @b = Hash.new { |hash, key| hash[key] = [] }
+  def initialize(gems_list)
+    @versions = Hash.new { |hash, key| hash[key] = [] }
+    @runtime_dependees = Hash.new { |hash, key| hash[key] = [] }
 
     @gems_to_remove = []
     @gems_missing = []
 
-    populate_lists
+    populate_lists(gems_list)
   end
 
   def resolve!
     remove = []
 
-    b.each do |name, dependees|
-      keep, _remove = a[name].sort.partition do |gem|
+    runtime_dependees.each do |name, dependees|
+      keep, _remove = versions[name].sort.partition do |gem|
         dependees.all? do |dependee|
           dep = dependee.runtime_dependencies.detect do |dep|
             dep.name == name
@@ -70,12 +69,12 @@ class Resolver
 
 private
 
-  def populate_lists
-    @gems.each do |gem|
-      @a[gem.name] << gem
+  def populate_lists(gems_list)
+    gems_list.each do |gem|
+      @versions[gem.name] << gem
 
       gem.runtime_dependencies.each do |dep|
-        @b[dep.name] << gem
+        @runtime_dependees[dep.name] << gem
       end
     end
   end
@@ -92,20 +91,20 @@ end
 
 test do |gems|
   resolver = Resolver.new(gems)
-  assert_equal "1", resolver.a["a"].first.version.to_s
-  assert_equal "1", resolver.a["b"].first.version.to_s
-  assert_equal "1", resolver.a["x"].first.version.to_s
-  assert_equal "2", resolver.a["x"].last.version.to_s
+  assert_equal "1", resolver.versions["a"].first.version.to_s
+  assert_equal "1", resolver.versions["b"].first.version.to_s
+  assert_equal "1", resolver.versions["x"].first.version.to_s
+  assert_equal "2", resolver.versions["x"].last.version.to_s
 end
 
 test do |gems|
   resolver = Resolver.new(gems)
-  assert_equal [],  resolver.b["a"]
-  assert_equal [],  resolver.b["b"]
-  assert_equal "a", resolver.b["x"].first.name
-  assert_equal "1", resolver.b["x"].first.version.to_s
-  assert_equal "b", resolver.b["x"].last.name
-  assert_equal "1", resolver.b["x"].last.version.to_s
+  assert_equal [],  resolver.runtime_dependees["a"]
+  assert_equal [],  resolver.runtime_dependees["b"]
+  assert_equal "a", resolver.runtime_dependees["x"].first.name
+  assert_equal "1", resolver.runtime_dependees["x"].first.version.to_s
+  assert_equal "b", resolver.runtime_dependees["x"].last.name
+  assert_equal "1", resolver.runtime_dependees["x"].last.version.to_s
 end
 
 test do |gems|
