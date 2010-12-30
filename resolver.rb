@@ -39,26 +39,14 @@ class Resolver
 
     runtime_dependees.each do |name, dependees|
       keep, _remove = versions[name].sort.partition do |gem|
-        dependees.all? do |dependee|
-          dep = dependee.runtime_dependencies.detect do |dep|
-            dep.name == name
-          end
-
-          dep && dep.match?(gem.name, gem.version)
-        end
+        satisfies_all_dependees?(gem, dependees)
       end
 
-      remove.concat(_remove) unless _remove.empty?
+      remove.concat(_remove)
       remove.concat(keep[1..-1]) if keep[1..-1]
 
-
       if keep.empty?
-        deps = dependees.map do |dependee|
-          dependee.runtime_dependencies.detect do |dep|
-            dep.name == name
-          end.requirement.to_s
-        end
-
+        deps = collect_missing_versions(name, dependees)
         @gems_missing << [name, deps]
       end
     end
@@ -68,6 +56,24 @@ class Resolver
   end
 
 private
+
+  def collect_missing_versions(name, dependees)
+    dependees.map do |dependee|
+      dependee.runtime_dependencies.detect do |dep|
+        dep.name == name
+      end.requirement.to_s
+    end
+  end
+
+  def satisfies_all_dependees?(gem, dependees)
+    dependees.all? do |dependee|
+      dep = dependee.runtime_dependencies.detect do |dep|
+        dep.name == gem.name
+      end
+
+      dep && dep.match?(gem.name, gem.version)
+    end
+  end
 
   def populate_lists(gems_list)
     gems_list.each do |gem|
