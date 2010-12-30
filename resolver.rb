@@ -12,7 +12,7 @@ def gemspec(name, version, dependencies = {})
   end
 end
 
-test do
+test "gemspec" do
   assert_equal "1", gemspec("x", 1).version.to_s
   assert_equal ">= 1", gemspec("a", 1, "x" => ">= 1").runtime_dependencies.first.requirement.to_s
   assert_equal "= 1", gemspec("a", 1, "x" => "1").runtime_dependencies.first.requirement.to_s
@@ -50,7 +50,6 @@ class Resolver
         @gems_missing << [name, deps]
       end
     end
-
 
     @gems_to_remove = remove
   end
@@ -95,7 +94,7 @@ setup do
   end
 end
 
-test do |gems|
+test "versions" do |gems|
   resolver = Resolver.new(gems)
   assert_equal "1", resolver.versions["a"].first.version.to_s
   assert_equal "1", resolver.versions["b"].first.version.to_s
@@ -103,7 +102,7 @@ test do |gems|
   assert_equal "2", resolver.versions["x"].last.version.to_s
 end
 
-test do |gems|
+test "runtime_dependees" do |gems|
   resolver = Resolver.new(gems)
   assert_equal [],  resolver.runtime_dependees["a"]
   assert_equal [],  resolver.runtime_dependees["b"]
@@ -113,7 +112,7 @@ test do |gems|
   assert_equal "1", resolver.runtime_dependees["x"].last.version.to_s
 end
 
-test do |gems|
+test "simple gems to remove" do |gems|
   resolver = Resolver.new(gems)
 
   resolver.resolve!
@@ -131,7 +130,7 @@ setup do
   end
 end
 
-test do |gems|
+test "gems to remove" do |gems|
   resolver = Resolver.new(gems)
   resolver.resolve!
 
